@@ -5,6 +5,7 @@ date: "November 7, 2016"
 output: html_document
 ---
 
+https://liebniz.github.io/machinelearning/
 
 ### Background
 
