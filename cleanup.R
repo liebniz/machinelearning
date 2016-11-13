@@ -107,4 +107,5 @@ predict(modelRF, newdata = testingReduced)
 
 load(file="final.Rdata")
 
+?varImpPlot
 

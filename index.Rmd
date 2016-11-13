@@ -10,17 +10,25 @@ https://liebniz.github.io/machinelearning/
 
 ### Problem Statement
 
-Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset). 
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, the goal will be to use data from accelerometers on the belt, forearm, arm, and dumbbell of 6 participants labeled. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways labelled A-E.
 
-### Download Data
+Once an acceptable model is created, a prediction of 20 independent test cases will be made using the model. The predicted results will be submitted separately for grading.
 
-Data is downloaded as shown below. The "training" data set will be sliced into training and validation sets used to both train and validate the model. The "testing" data set will be used to make actual predictions once a suitable model is determined.
+### Download Input Data
 
-```{r cache=TRUE}
+Data is downloaded as shown below. The "training" data set will be partitioned into training and validation sets. The "testing" data set will be used to make actual predictions once a suitable model is determined.
 
+
+```{r}
+# load libraries and set seed in non-cached code snippet
+# to avoid scoping issues
 library(caret,warn.conflicts = F,quietly = T)
+library(randomForest)
 
 set.seed(12345) # set for all subsequent usages
+```
+
+```{r cache=TRUE}
 
 trainingCsv <- read.csv("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv")
 
@@ -37,7 +45,7 @@ Taking a look at the data we see that there are many columns that contain empty 
 ```{r}
 str(trainingCsv)
 ```
-The data is loaded into excel where it is easy to identify the columns that contain good vs. bad data. In addition to NA's and empty values, columns containing timestamps or artifical id's (sequence numbers) are to be ignored as they are not relevant.
+The data is loaded into excel where it is easily determined which columns contain acceptable data. In addition to NA's and empty values, columns containing time stamps or artificial id's (sequence numbers) are to be ignored as they are not relevant to the prediction.
 
 Using favorite text editor, the following list of variables is determined:
 
@@ -63,7 +71,7 @@ colNames = c("roll_belt", "pitch_belt",
 ```
 
 
-The data is filtered based on these columns. The "classe" column is included in the training set as this is our classifier for prediction.
+The data is filtered based on these column names. The "classe" column is included in the training set as this is our classifier for prediction.
 
 ```{r}
 # save till end of project
@@ -76,7 +84,7 @@ trainingReduced <- subset(trainingCsv,select = c("classe", colNames))
 
 ### Splitting
 
-As per the idiom from class notes/slides, the input data is split into training and testing partitions using the createDataPartion() function in the caret package.
+As per the idiom from class notes/slides, the input data is split into training and testing partitions using the createDataPartion() function from the caret package.
 
 ```{r}
 
@@ -89,7 +97,7 @@ dim(testing)
 
 ```
 
-We are now ready to start modeling.
+We now have clean data and are ready to start modeling.
 
 ### Model Selection
 
@@ -108,14 +116,15 @@ Starting with recursive partitioning and regression trees (rpart), the following
 modelRPart <- train(classe ~ ., data=training, method="rpart")
 ```
 
-The model is now used to predict from the testing data.
+The model is now used to predict from the testing data partition.
 
 ```{r}
 predictRPart <- predict(modelRPart, newdata = testing)
 
 ```
 
-Displaying the confusion matrix:
+
+Comparing predicted values with original test data via the confusion matrix:
 
 ```{r}
 cm <- confusionMatrix(predictRPart, testing$classe)
@@ -128,9 +137,9 @@ and specifically the model accuracy
 cm$overall["Accuracy"]
 ```
 
-We see that in this case, a coin flip will give about the same predictive capabilities of 49%.
+We see that in this case, a coin flip will give about the same predictive capabilities of 49% as the CART model.
 
-This is not a very powerful model. For what it's worth, the classification tree is plotted. We see that the important variables are roll_belt, pith_forarm, yaw_belt, magnet_dumbbell, and so on.
+This is not a powerful model. For what it's worth, the classification tree is plotted. We see that the important variables are roll_belt, pith_forearm, yaw_belt, magnet_dumbbell, and so on.
 
 ```{r}
 plot(modelRPart$finalModel, uniform=T, main="Classification Tree")
@@ -139,11 +148,11 @@ text(modelRPart$finalModel, use.n=T, cex=.8)
 
 #### Random Forest
 
-Trying random forest approach as it's hallmark is accuracy. Ran into performance issues using the caret 'train(method="rf")'. Please refer to the following article which suggests several performance improvements. Most notably, "bagging" (sorry) formulas as they are parsed and evaluated very inefficiently.
+Now the Random Forest approach as used - it's hallmark is accuracy. While running the train(model="rf") function, ran into performance issues. Please refer to the following article which suggests several performance improvements. Most notably, "bagging" (sorry) formulas as they are parsed and evaluated very inefficiently.
 
 http://stackoverflow.com/questions/15321947/problematic-random-forest-training-runtime-when-using-formula-interface
 
-Using 1000 trees, the model is calculated and the test data is used to predict outcome.
+Using 1000 trees, the model is calculated and the test data partition is used to predict outcome.
 
 ```{r, cache=T}
 
@@ -162,7 +171,7 @@ predictRF <- predict(modelRF, newdata = testing)
 
 ```
 
-Displaying the confusion matrix:
+Comparing predicted values with original test data via the confusion matrix:
 
 ```{r}
 cm <- confusionMatrix(predictRF, testing$classe)
@@ -178,7 +187,6 @@ cm$overall["Accuracy"]
 The GINI values are plotted as follows
 
 ```{r}
-
 varImpPlot(modelRF,n.var = 10,pch=9,col="blue")
 
 ```
@@ -197,7 +205,7 @@ final
 
 ```
 
-Finally, serialize the results to the workspace. Will use this to create the submission file offline.
+Finally, the results are serialized to the workspace. This data will be used to create the results submission file offline.
 
 ```{r}
 save(final, file = "final.Rdata")
