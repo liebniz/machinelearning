@@ -8,62 +8,199 @@ output: html_document
 
 https://liebniz.github.io/machinelearning/
 
-### Background
+### Problem Statement
 
 Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset). 
 
-### Data
+### Download Data
 
-The training data for this project are available here:
-
-https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
-
-The test data are available here:
-
-https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
-
-The data for this project come from this source: http://groupware.les.inf.puc-rio.br/har. If you use the document you create for this class for any purpose please cite them as they have been very generous in allowing their data to be used for this kind of assignment.
-
-### What you should submit
-
-The goal of your project is to predict the manner in which they did the exercise. This is the "classe" variable in the training set. You may use any of the other variables to predict with. You should create a report describing how you built your model, how you used cross validation, what you think the expected out of sample error is, and why you made the choices you did. You will also use your prediction model to predict 20 different test cases.
-
-#### Peer Review Portion
-
-Your submission for the Peer Review portion should consist of a link to a Github repo with your R markdown and compiled HTML file describing your analysis. Please constrain the text of the writeup to < 2000 words and the number of figures to be less than 5. It will make it easier for the graders if you submit a repo with a gh-pages branch so the HTML page can be viewed online (and you always want to make it easy on graders :-).
-
-#### Course Project Prediction Quiz Portion
-
-Apply your machine learning algorithm to the 20 test cases available in the test data above and submit your predictions in appropriate format to the Course Project Prediction Quiz for automated grading.
-
-### Reproducibility
-
-Due to security concerns with the exchange of R code, your code will not be run during the evaluation by your classmates. Please be sure that if they download the repo, they will be able to view the compiled HTML version of your analysis.
-
-
-
-
-### Getting Data
+Data is downloaded as shown below. The "training" data set will be sliced into training and validation sets used to both train and validate the model. The "testing" data set will be used to make actual predictions once a suitable model is determined.
 
 ```{r cache=TRUE}
 
-training <- read.csv("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv")
+library(caret,warn.conflicts = F,quietly = T)
 
-testing <- read.csv("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv")
+set.seed(12345) # set for all subsequent usages
+
+trainingCsv <- read.csv("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv")
+
+testingCsv <- read.csv("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv")
+
 
 ```
 
 ### Data Analysis
 
+Taking a look at the data we see that there are many columns that contain empty values, NA's, and junk (e.g., #DIV/0!). This data will have to be ignored.
+
+
 ```{r}
-str(training)
+str(trainingCsv)
+```
+The data is loaded into excel where it is easy to identify the columns that contain good vs. bad data. In addition to NA's and empty values, columns containing timestamps or artifical id's (sequence numbers) are to be ignored as they are not relevant.
+
+Using favorite text editor, the following list of variables is determined:
+
+```{r}
+
+colNames = c("roll_belt", "pitch_belt", 
+  "yaw_belt", "total_accel_belt", "gyros_belt_x", 
+  "gyros_belt_y", "gyros_belt_z", "accel_belt_x",
+  "accel_belt_y", "accel_belt_z", "magnet_belt_x", 
+  "magnet_belt_y", "magnet_belt_z", "roll_arm", 
+  "pitch_arm", "yaw_arm", "total_accel_arm", "gyros_arm_x",
+  "gyros_arm_y",  "gyros_arm_z", "accel_arm_x", "accel_arm_y",
+  "accel_arm_z", "magnet_arm_x",  "magnet_arm_y", "magnet_arm_z",
+  "roll_dumbbell", "pitch_dumbbell", "yaw_dumbbell",
+  "total_accel_dumbbell", "gyros_dumbbell_x", "gyros_dumbbell_y",
+  "gyros_dumbbell_z", "accel_dumbbell_x", "accel_dumbbell_y",
+  "accel_dumbbell_z", "magnet_dumbbell_x", "magnet_dumbbell_y",
+  "magnet_dumbbell_z", "roll_forearm", "pitch_forearm",
+  "yaw_forearm", "gyros_forearm_x", "gyros_forearm_y",
+  "gyros_forearm_z",  "accel_forearm_x", "accel_forearm_y",
+  "accel_forearm_z", "magnet_forearm_x", "magnet_forearm_y",
+  "magnet_forearm_z") 
+```
+
+
+The data is filtered based on these columns. The "classe" column is included in the training set as this is our classifier for prediction.
+
+```{r}
+# save till end of project
+testingReduced <- subset(testingCsv,select = colNames)
+
+# include the "classe" column
+trainingReduced <- subset(trainingCsv,select = c("classe", colNames))
+```
+
+
+### Splitting
+
+As per the idiom from class notes/slides, the input data is split into training and testing partitions using the createDataPartion() function in the caret package.
+
+```{r}
+
+inTrain <- createDataPartition(y=trainingReduced$classe, p=0.7, list=FALSE)
+
+training <- trainingReduced[inTrain,]
+testing <- trainingReduced[-inTrain,]
+dim(training)
+dim(testing)
 
 ```
+
+We are now ready to start modeling.
+
+### Model Selection
+
+Since this is a classification problem, CART (Classification and Regression Trees) and Random Forest are reasonable approaches for modeling. In addition to class notes, this article was used for ideas. 
+
+https://www.r-bloggers.com/a-brief-tour-of-the-trees-and-forests/
+
+
+#### rpart
+
+Starting with recursive partitioning and regression trees (rpart), the following model is produced.  
+
+
+```{r, cache=TRUE}
+
+modelRPart <- train(classe ~ ., data=training, method="rpart")
+```
+
+The model is now used to predict from the testing data.
+
 ```{r}
-sum(is.na(training$amplitude_roll_dumbbell))
-
-sum(is.na(training$skewness_yaw_dumbbell))
-distinct(is.na(training$skewness_yaw_dumbbell))
-
+predictRPart <- predict(modelRPart, newdata = testing)
 
 ```
+
+Displaying the confusion matrix:
+
+```{r}
+cm <- confusionMatrix(predictRPart, testing$classe)
+cm
+```
+
+and specifically the model accuracy
+
+```{r}
+cm$overall["Accuracy"]
+```
+
+We see that in this case, a coin flip will give about the same predictive capabilities of 49%.
+
+This is not a very powerful model. For what it's worth, the classification tree is plotted. We see that the important variables are roll_belt, pith_forarm, yaw_belt, magnet_dumbbell, and so on.
+
+```{r}
+plot(modelRPart$finalModel, uniform=T, main="Classification Tree")
+text(modelRPart$finalModel, use.n=T, cex=.8)
+```
+
+#### Random Forest
+
+Trying random forest approach as it's hallmark is accuracy. Ran into performance issues using the caret 'train(method="rf")'. Please refer to the following article which suggests several performance improvements. Most notably, "bagging" (sorry) formulas as they are parsed and evaluated very inefficiently.
+
+http://stackoverflow.com/questions/15321947/problematic-random-forest-training-runtime-when-using-formula-interface
+
+Using 1000 trees, the model is calculated and the test data is used to predict outcome.
+
+```{r, cache=T}
+
+# Random Forest
+# using train("rf") was too slow - did not complete
+
+#modelRF <- train(classe ~ ., data=training, method="rf")
+
+# x = predictors (everything except classe), 
+# y = classifier
+
+modelRF <- randomForest(x=training[,-1],y = training$classe, 
+                        ntree = 1000, do.trace = F)
+
+predictRF <- predict(modelRF, newdata = testing)
+
+```
+
+Displaying the confusion matrix:
+
+```{r}
+cm <- confusionMatrix(predictRF, testing$classe)
+cm
+```
+
+and specifically the model accuracy
+
+```{r}
+cm$overall["Accuracy"]
+```
+
+The GINI values are plotted as follows
+
+```{r}
+
+varImpPlot(modelRF,n.var = 10,pch=9,col="blue")
+
+```
+
+The order of important variables are slightly different than from the CART model. In this case roll_belt, yaw_belt, pitch_forearm are the top three.
+
+The accuracy is 99.2% (very impressive). This model will be used to predict the 20 test cases.
+
+#### Predicting the Testing data
+The 20 test cases are used for prediction using the random forest model.
+
+```{r}
+final <- predict(modelRF, newdata = testingReduced)
+
+final
+
+```
+
+Finally, serialize the results to the workspace. Will use this to create the submission file offline.
+
+```{r}
+save(final, file = "final.Rdata")
+```
+
+

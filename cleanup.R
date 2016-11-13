@@ -28,7 +28,7 @@ colNames = c("roll_belt", "pitch_belt",
              "yaw_forearm", "gyros_forearm_x", "gyros_forearm_y", "gyros_forearm_z", 
              "accel_forearm_x", "accel_forearm_y", "accel_forearm_z", "magnet_forearm_x", 
              "magnet_forearm_y", "magnet_forearm_z") 
-             # ,"problem_id")
+# ,"problem_id")
 
 # save till end of project
 testingReduced <- subset(testingCsv,select = colNames)
@@ -37,7 +37,7 @@ testingReduced <- subset(testingCsv,select = colNames)
 trainingReduced <- subset(trainingCsv,select = c("classe", colNames))
 
 # Splitting - as per idiom from class notes
-
+library(caret)
 inTrain <- createDataPartition(y=trainingReduced$classe, p=0.7, list=FALSE)
 
 training <- trainingReduced[inTrain,]
@@ -103,4 +103,8 @@ predict(modelRF, newdata = testingReduced)
 #B  A  B  A  A  E  D  B  A  A  B  C  B  A  E  E  A  B  B  B 
 #Levels: A B C D E
 #> 
+
+
+load(file="final.Rdata")
+
 
